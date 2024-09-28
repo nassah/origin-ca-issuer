@@ -126,7 +126,8 @@ func TestSign(t *testing.T) {
 			ts := httptest.NewTLSServer(tt.handler)
 			defer ts.Close()
 
-			client := New([]byte("v1.0-FFFF-FFFF"),
+			client := New(
+				WithServiceKey([]byte("v1.0-FFFF-FFFF")),
 				WithClient(ts.Client()),
 				Must(WithEndpoint(ts.URL)),
 			)

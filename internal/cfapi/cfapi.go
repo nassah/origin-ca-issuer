@@ -20,11 +20,10 @@ type Client struct {
 	endpoint   string
 }
 
-func New(serviceKey []byte, options ...Options) *Client {
+func New(options ...Options) *Client {
 	c := &Client{
-		serviceKey: serviceKey,
-		client:     http.DefaultClient,
-		endpoint:   "https://api.cloudflare.com/client/v4/certificates",
+		client:   http.DefaultClient,
+		endpoint: "https://api.cloudflare.com/client/v4/certificates",
 	}
 
 	for _, opt := range options {
@@ -35,6 +34,12 @@ func New(serviceKey []byte, options ...Options) *Client {
 }
 
 type Options func(c *Client)
+
+func WithServiceKey(key []byte) Options {
+	return func(c *Client) {
+		c.serviceKey = key
+	}
+}
 
 func WithClient(client *http.Client) Options {
 	return func(c *Client) {

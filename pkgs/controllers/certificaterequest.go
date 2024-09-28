@@ -30,7 +30,7 @@ type CertificateRequestController struct {
 	Reader                   client.Reader
 	ClusterResourceNamespace string
 	Log                      logr.Logger
-	Factory                  cfapi.Factory
+	Builder                  *cfapi.Builder
 
 	Clock                  clock.Clock
 	CheckApprovedCondition bool
@@ -199,13 +199,7 @@ func (r *CertificateRequestController) Reconcile(ctx context.Context, cr *certma
 		return reconcile.Result{}, err
 	}
 
-	c, err := r.Factory.APIWith(serviceKey)
-	if err != nil {
-		log.Error(err, "failed to create API client")
-
-		return reconcile.Result{}, err
-	}
-
+	c := r.Builder.Clone().WithServiceKey(serviceKey).Build()
 	p, err := provisioners.New(c, issuerspec.RequestType, log)
 	if err != nil {
 		log.Error(err, "failed to create provisioner")

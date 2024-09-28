@@ -75,22 +75,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	httpClient := &http.Client{
-		Timeout: 30 * time.Second,
-	}
-	f := cfapi.FactoryFunc(func(serviceKey []byte) (cfapi.Interface, error) {
-		return cfapi.New(serviceKey, cfapi.WithClient(httpClient)), nil
-	})
-
 	err = builder.
 		ControllerManagedBy(mgr).
 		For(&v1.OriginIssuer{}).
 		Complete(reconcile.AsReconciler(mgr.GetClient(), &controllers.OriginIssuerController{
-			Client:  mgr.GetClient(),
-			Reader:  mgr.GetAPIReader(),
-			Clock:   clock.RealClock{},
-			Factory: f,
-			Log:     log.WithName("controllers").WithName("OriginIssuer"),
+			Client: mgr.GetClient(),
+			Reader: mgr.GetAPIReader(),
+			Clock:  clock.RealClock{},
+			Log:    log.WithName("controllers").WithName("OriginIssuer"),
 		}))
 
 	if err != nil {
@@ -106,7 +98,6 @@ func main() {
 			Reader:                   mgr.GetAPIReader(),
 			ClusterResourceNamespace: o.ClusterResourceNamespace,
 			Clock:                    clock.RealClock{},
-			Factory:                  f,
 			Log:                      log.WithName("controllers").WithName("ClusterOriginIssuer"),
 		}))
 
@@ -122,8 +113,10 @@ func main() {
 			Client:                   mgr.GetClient(),
 			Reader:                   mgr.GetAPIReader(),
 			ClusterResourceNamespace: o.ClusterResourceNamespace,
-			Factory:                  f,
-			Log:                      log.WithName("controllers").WithName("CertificateRequest"),
+			Builder: cfapi.NewBuilder().WithClient(&http.Client{
+				Timeout: 30 * time.Second,
+			}),
+			Log: log.WithName("controllers").WithName("CertificateRequest"),
 
 			Clock:                  clock.RealClock{},
 			CheckApprovedCondition: !o.DisableApprovedCheck,

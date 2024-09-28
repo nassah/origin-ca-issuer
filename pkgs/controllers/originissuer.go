@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/cloudflare/origin-ca-issuer/internal/cfapi"
 	v1 "github.com/cloudflare/origin-ca-issuer/pkgs/apis/v1"
 	"github.com/go-logr/logr"
 	core "k8s.io/api/core/v1"
@@ -19,10 +18,9 @@ import (
 // to OriginIssuer resources.
 type OriginIssuerController struct {
 	client.Client
-	Reader  client.Reader
-	Log     logr.Logger
-	Clock   clock.Clock
-	Factory cfapi.Factory
+	Reader client.Reader
+	Log    logr.Logger
+	Clock  clock.Clock
 }
 
 //go:generate controller-gen rbac:roleName=originissuer-control paths=./. output:rbac:artifacts:config=../../deploy/rbac

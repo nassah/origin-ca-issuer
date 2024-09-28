@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"crypto/x509"
 	"testing"
 	"time"
 
@@ -12,7 +11,10 @@ import (
 	cmgen "github.com/cert-manager/cert-manager/test/unit/gen"
 	"github.com/cloudflare/origin-ca-issuer/internal/cfapi"
 	v1 "github.com/cloudflare/origin-ca-issuer/pkgs/apis/v1"
+	"gopkg.in/dnaeon/go-vcr.v4/pkg/cassette"
+	"gopkg.in/dnaeon/go-vcr.v4/pkg/recorder"
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/golden"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -41,7 +43,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 	tests := []struct {
 		name          string
 		objects       []runtime.Object
-		signer        SignerFunc
+		recorder      *recorder.Recorder
 		expected      cmapi.CertificateRequestStatus
 		error         string
 		namespaceName types.NamespacedName
@@ -52,14 +54,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 				cmgen.CertificateRequest("foobar",
 					cmgen.SetCertificateRequestNamespace("default"),
 					cmgen.SetCertificateRequestDuration(&metav1.Duration{Duration: 7 * 24 * time.Hour}),
-					cmgen.SetCertificateRequestCSR((func() []byte {
-						csr, _, err := cmgen.CSR(x509.ECDSA)
-						if err != nil {
-							t.Fatalf("creating CSR: %s", err)
-						}
-
-						return csr
-					})()),
+					cmgen.SetCertificateRequestCSR(golden.Get(t, "csr.golden")),
 					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
 						Name:  "foobar",
 						Kind:  "OriginIssuer",
@@ -72,6 +67,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 						Namespace: "default",
 					},
 					Spec: v1.OriginIssuerSpec{
+						RequestType: v1.RequestTypeOriginECC,
 						Auth: v1.OriginIssuerAuthentication{
 							ServiceKeyRef: v1.SecretKeySelector{
 								Name: "service-key-issuer",
@@ -98,17 +94,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 					},
 				},
 			},
-			signer: SignerFunc(func(ctx context.Context, sr *cfapi.SignRequest) (*cfapi.SignResponse, error) {
-				return &cfapi.SignResponse{
-					Id:          "1",
-					Certificate: "bogus",
-					Hostnames:   []string{"example.com"},
-					Expiration:  time.Time{},
-					Type:        "colemak",
-					Validity:    0,
-					CSR:         "foobar",
-				}, nil
-			}),
+			recorder: RecorderMust(t, "testdata/working"),
 			expected: cmapi.CertificateRequestStatus{
 				Conditions: []cmapi.CertificateRequestCondition{
 					{
@@ -119,7 +105,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 						Message:            "Certificate issued",
 					},
 				},
-				Certificate: []byte("bogus"),
+				Certificate: golden.Get(t, "certificate.golden"),
 			},
 			namespaceName: types.NamespacedName{
 				Namespace: "default",
@@ -132,14 +118,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 				cmgen.CertificateRequest("foobar",
 					cmgen.SetCertificateRequestNamespace("default"),
 					cmgen.SetCertificateRequestDuration(&metav1.Duration{Duration: 7 * 24 * time.Hour}),
-					cmgen.SetCertificateRequestCSR((func() []byte {
-						csr, _, err := cmgen.CSR(x509.ECDSA)
-						if err != nil {
-							t.Fatalf("creating CSR: %s", err)
-						}
-
-						return csr
-					})()),
+					cmgen.SetCertificateRequestCSR(golden.Get(t, "csr.golden")),
 					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
 						Name:  "foobar",
 						Kind:  "ClusterOriginIssuer",
@@ -151,6 +130,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 						Name: "foobar",
 					},
 					Spec: v1.OriginIssuerSpec{
+						RequestType: v1.RequestTypeOriginECC,
 						Auth: v1.OriginIssuerAuthentication{
 							ServiceKeyRef: v1.SecretKeySelector{
 								Name: "service-key-issuer",
@@ -177,17 +157,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 					},
 				},
 			},
-			signer: SignerFunc(func(ctx context.Context, sr *cfapi.SignRequest) (*cfapi.SignResponse, error) {
-				return &cfapi.SignResponse{
-					Id:          "1",
-					Certificate: "bogus",
-					Hostnames:   []string{"example.com"},
-					Expiration:  time.Time{},
-					Type:        "colemak",
-					Validity:    0,
-					CSR:         "foobar",
-				}, nil
-			}),
+			recorder: RecorderMust(t, "testdata/working"),
 			expected: cmapi.CertificateRequestStatus{
 				Conditions: []cmapi.CertificateRequestCondition{
 					{
@@ -198,7 +168,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 						Message:            "Certificate issued",
 					},
 				},
-				Certificate: []byte("bogus"),
+				Certificate: golden.Get(t, "certificate.golden"),
 			},
 			namespaceName: types.NamespacedName{
 				Namespace: "default",
@@ -211,14 +181,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 				cmgen.CertificateRequest("foobar",
 					cmgen.SetCertificateRequestNamespace("default"),
 					cmgen.SetCertificateRequestDuration(&metav1.Duration{Duration: 7 * 24 * time.Hour}),
-					cmgen.SetCertificateRequestCSR((func() []byte {
-						csr, _, err := cmgen.CSR(x509.ECDSA)
-						if err != nil {
-							t.Fatalf("creating CSR: %s", err)
-						}
-
-						return csr
-					})()),
+					cmgen.SetCertificateRequestCSR(golden.Get(t, "csr.golden")),
 					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
 						Name:  "foobar",
 						Kind:  "OriginIssuer",
@@ -231,6 +194,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 						Namespace: "default",
 					},
 					Spec: v1.OriginIssuerSpec{
+						RequestType: v1.RequestTypeOriginECC,
 						Auth: v1.OriginIssuerAuthentication{
 							ServiceKeyRef: v1.SecretKeySelector{
 								Name: "service-key-issuer",
@@ -257,18 +221,12 @@ func TestCertificateRequestReconcile(t *testing.T) {
 					},
 				},
 			},
-			signer: SignerFunc(func(ctx context.Context, sr *cfapi.SignRequest) (*cfapi.SignResponse, error) {
-				return nil, &cfapi.APIError{
-					Code:    1100,
-					Message: "Failed to write certificate to Database",
-					RayID:   "7d3eb086eedab98e",
-				}
-			}),
+			recorder: RecorderMust(t, "testdata/database-failure"),
 			namespaceName: types.NamespacedName{
 				Namespace: "default",
 				Name:      "foobar",
 			},
-			error: "unable to sign request: Cloudflare API Error code=1100 message=Failed to write certificate to Database ray_id=7d3eb086eedab98e",
+			error: "unable to sign request: Cloudflare API Error code=1100 message=Failed to write certificate to Database ray_id=0123456789abcdef-ABC",
 		},
 	}
 
@@ -281,14 +239,14 @@ func TestCertificateRequestReconcile(t *testing.T) {
 				WithStatusSubresource(&cmapi.CertificateRequest{}).
 				Build()
 
+			defer tt.recorder.Stop()
+
 			controller := &CertificateRequestController{
 				Client:                   client,
 				Reader:                   client,
 				ClusterResourceNamespace: "super-secret",
 				Log:                      logf.Log,
-				Factory: cfapi.FactoryFunc(func(serviceKey []byte) (cfapi.Interface, error) {
-					return tt.signer, nil
-				}),
+				Builder:                  cfapi.NewBuilder().WithClient(tt.recorder.GetDefaultClient()),
 			}
 
 			_, err := reconcile.AsReconciler(client, controller).Reconcile(context.Background(), reconcile.Request{
@@ -308,8 +266,20 @@ func TestCertificateRequestReconcile(t *testing.T) {
 	}
 }
 
-type SignerFunc func(context.Context, *cfapi.SignRequest) (*cfapi.SignResponse, error)
+func RecorderMust(t *testing.T, name string) *recorder.Recorder {
+	t.Helper()
+	recorder, err := recorder.New(name,
+		recorder.WithHook(func(i *cassette.Interaction) error {
+			delete(i.Response.Headers, "Set-Cookie")
+			delete(i.Response.Headers, "Cf-Auditlog-Id")
+			i.Response.Headers.Set("Cf-Ray", "0123456789abcdef-ABC")
+			return nil
+		}, recorder.BeforeSaveHook),
+		recorder.WithSkipRequestLatency(true),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-func (f SignerFunc) Sign(ctx context.Context, req *cfapi.SignRequest) (*cfapi.SignResponse, error) {
-	return f(ctx, req)
+	return recorder
 }

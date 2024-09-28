@@ -6,7 +6,6 @@ import (
 	"time"
 
 	cmapi "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
-	"github.com/cloudflare/origin-ca-issuer/internal/cfapi"
 	v1 "github.com/cloudflare/origin-ca-issuer/pkgs/apis/v1"
 	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
@@ -171,11 +170,8 @@ func TestClusterOriginIssuerReconcile(t *testing.T) {
 				Client:                   client,
 				Reader:                   client,
 				ClusterResourceNamespace: "super-secret",
-				Factory: cfapi.FactoryFunc(func(serviceKey []byte) (cfapi.Interface, error) {
-					return nil, nil
-				}),
-				Clock: clock,
-				Log:   logf.Log,
+				Clock:                    clock,
+				Log:                      logf.Log,
 			}
 
 			_, err := reconcile.AsReconciler(client, controller).Reconcile(context.Background(), reconcile.Request{

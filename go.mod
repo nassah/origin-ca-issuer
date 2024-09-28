@@ -1,8 +1,8 @@
 module github.com/cloudflare/origin-ca-issuer
 
-go 1.21
+go 1.22
 
-toolchain go1.21.5
+toolchain go1.23.1
 
 require (
 	github.com/cert-manager/cert-manager v1.9.2
@@ -11,6 +11,7 @@ require (
 	github.com/google/go-cmp v0.6.0
 	github.com/rs/zerolog v1.25.0
 	github.com/spf13/pflag v1.0.5
+	gopkg.in/dnaeon/go-vcr.v4 v4.0.1
 	gotest.tools/v3 v3.0.3
 	k8s.io/api v0.29.0
 	k8s.io/apimachinery v0.29.0
