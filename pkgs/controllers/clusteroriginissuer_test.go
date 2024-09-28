@@ -39,7 +39,7 @@ func TestClusterOriginIssuerReconcile(t *testing.T) {
 		namespaceName types.NamespacedName
 	}{
 		{
-			name: "working with secrets",
+			name: "working serviceKeyRef",
 			objects: []runtime.Object{
 				&v1.ClusterOriginIssuer{
 					ObjectMeta: metav1.ObjectMeta{
@@ -48,7 +48,7 @@ func TestClusterOriginIssuerReconcile(t *testing.T) {
 					Spec: v1.OriginIssuerSpec{
 						RequestType: v1.RequestTypeOriginRSA,
 						Auth: v1.OriginIssuerAuthentication{
-							ServiceKeyRef: v1.SecretKeySelector{
+							ServiceKeyRef: &v1.SecretKeySelector{
 								Name: "issuer-service-key",
 								Key:  "key",
 							},
@@ -81,7 +81,7 @@ func TestClusterOriginIssuerReconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "missing secret",
+			name: "missing serviceKeyRef",
 			objects: []runtime.Object{
 				&v1.ClusterOriginIssuer{
 					ObjectMeta: metav1.ObjectMeta{
@@ -90,7 +90,7 @@ func TestClusterOriginIssuerReconcile(t *testing.T) {
 					Spec: v1.OriginIssuerSpec{
 						RequestType: v1.RequestTypeOriginRSA,
 						Auth: v1.OriginIssuerAuthentication{
-							ServiceKeyRef: v1.SecretKeySelector{
+							ServiceKeyRef: &v1.SecretKeySelector{
 								Name: "issuer-service-key",
 								Key:  "key",
 							},
@@ -115,7 +115,7 @@ func TestClusterOriginIssuerReconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "secret missing key",
+			name: "serviceKeyRef missing key",
 			objects: []runtime.Object{
 				&v1.ClusterOriginIssuer{
 					ObjectMeta: metav1.ObjectMeta{
@@ -124,7 +124,7 @@ func TestClusterOriginIssuerReconcile(t *testing.T) {
 					Spec: v1.OriginIssuerSpec{
 						RequestType: v1.RequestTypeOriginRSA,
 						Auth: v1.OriginIssuerAuthentication{
-							ServiceKeyRef: v1.SecretKeySelector{
+							ServiceKeyRef: &v1.SecretKeySelector{
 								Name: "issuer-service-key",
 								Key:  "key",
 							},
@@ -153,6 +153,36 @@ func TestClusterOriginIssuerReconcile(t *testing.T) {
 			error: `secret issuer-service-key does not contain key "key"`,
 			namespaceName: types.NamespacedName{
 				Name: "foo",
+			},
+		},
+		{
+			name: "unset authentication",
+			objects: []runtime.Object{
+				&v1.ClusterOriginIssuer{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "foo",
+						Namespace: "default",
+					},
+					Spec: v1.OriginIssuerSpec{
+						RequestType: v1.RequestTypeOriginRSA,
+					},
+				},
+			},
+			expected: v1.OriginIssuerStatus{
+				Conditions: []v1.OriginIssuerCondition{
+					{
+						Type:               v1.ConditionReady,
+						Status:             v1.ConditionFalse,
+						LastTransitionTime: &now,
+						Reason:             "MissingAuthentication",
+						Message:            "No authentication methods were configured",
+					},
+				},
+			},
+			error: `secret issuer-service-key does not contain key "key"`,
+			namespaceName: types.NamespacedName{
+				Namespace: "default",
+				Name:      "foo",
 			},
 		},
 	}

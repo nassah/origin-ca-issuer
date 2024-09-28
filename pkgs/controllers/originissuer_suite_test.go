@@ -32,7 +32,7 @@ func TestOriginIssuerReconcileSuite(t *testing.T) {
 		Spec: v1.OriginIssuerSpec{
 			RequestType: v1.RequestTypeOriginRSA,
 			Auth: v1.OriginIssuerAuthentication{
-				ServiceKeyRef: v1.SecretKeySelector{
+				ServiceKeyRef: &v1.SecretKeySelector{
 					Name: "issuer-service-key",
 					Key:  "key",
 				},

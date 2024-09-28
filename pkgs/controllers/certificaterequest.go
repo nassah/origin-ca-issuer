@@ -112,8 +112,8 @@ func (r *CertificateRequestController) Reconcile(ctx context.Context, cr *certma
 	}
 
 	var (
-		secretNamespaceName types.NamespacedName
-		issuerspec          v1.OriginIssuerSpec
+		secretNamespace string
+		issuerspec      v1.OriginIssuerSpec
 	)
 
 	switch cr.Spec.IssuerRef.Kind {
@@ -139,10 +139,7 @@ func (r *CertificateRequestController) Reconcile(ctx context.Context, cr *certma
 			return reconcile.Result{}, err
 		}
 
-		secretNamespaceName = types.NamespacedName{
-			Namespace: iss.Namespace,
-			Name:      iss.Spec.Auth.ServiceKeyRef.Name,
-		}
+		secretNamespace = iss.Namespace
 		issuerspec = iss.Spec
 	case "ClusterOriginIssuer":
 		iss := v1.ClusterOriginIssuer{}
@@ -165,10 +162,7 @@ func (r *CertificateRequestController) Reconcile(ctx context.Context, cr *certma
 			return reconcile.Result{}, err
 		}
 
-		secretNamespaceName = types.NamespacedName{
-			Namespace: r.ClusterResourceNamespace,
-			Name:      iss.Spec.Auth.ServiceKeyRef.Name,
-		}
+		secretNamespace = r.ClusterResourceNamespace
 		issuerspec = iss.Spec
 	default:
 		err := fmt.Errorf("unknown issuer kind: %s", cr.Spec.IssuerRef.Kind)
@@ -178,28 +172,44 @@ func (r *CertificateRequestController) Reconcile(ctx context.Context, cr *certma
 		return reconcile.Result{}, err
 	}
 
-	var secret core.Secret
-	if err := r.Reader.Get(ctx, secretNamespaceName, &secret); err != nil {
-		log.Error(err, "failed to retieve OriginIssuer auth secret", "namespace", secretNamespaceName.Namespace, "name", secretNamespaceName.Name)
-		if apierrors.IsNotFound(err) {
-			_ = r.setStatus(ctx, cr, cmmeta.ConditionFalse, "NotFound", fmt.Sprintf("Failed to retrieve auth secret: %v", err))
-		} else {
-			_ = r.setStatus(ctx, cr, cmmeta.ConditionFalse, "Error", fmt.Sprintf("Failed to retrieve auth secret: %v", err))
+	var c *cfapi.Client
+	switch {
+	case issuerspec.Auth.ServiceKeyRef != nil:
+		var secret core.Secret
+
+		secretNamespaceName := types.NamespacedName{
+			Namespace: secretNamespace,
+			Name:      issuerspec.Auth.ServiceKeyRef.Name,
 		}
 
+		if err := r.Reader.Get(ctx, secretNamespaceName, &secret); err != nil {
+			log.Error(err, "failed to retieve OriginIssuer auth secret", "namespace", secretNamespaceName.Namespace, "name", secretNamespaceName.Name)
+			if apierrors.IsNotFound(err) {
+				_ = r.setStatus(ctx, cr, cmmeta.ConditionFalse, "NotFound", fmt.Sprintf("Failed to retrieve auth secret: %v", err))
+			} else {
+				_ = r.setStatus(ctx, cr, cmmeta.ConditionFalse, "Error", fmt.Sprintf("Failed to retrieve auth secret: %v", err))
+			}
+
+			return reconcile.Result{}, err
+		}
+
+		serviceKey, ok := secret.Data[issuerspec.Auth.ServiceKeyRef.Key]
+		if !ok {
+			err := fmt.Errorf("secret %s does not contain key %q", secret.Name, issuerspec.Auth.ServiceKeyRef.Key)
+			log.Error(err, "failed to retrieve OriginIssuer auth secret")
+			_ = r.setStatus(ctx, cr, cmmeta.ConditionFalse, "NotFound", fmt.Sprintf("Failed to retrieve auth secret: %v", err))
+
+			return reconcile.Result{}, err
+		}
+
+		c = r.Builder.Clone().WithServiceKey(serviceKey).Build()
+	default:
+		// This issuer should not be ready!
+		err := fmt.Errorf("issuer %s does not have an authentication method configured", cr.Spec.IssuerRef.Name)
+		log.Error(err, "failed to retrieve issuer auth secret")
 		return reconcile.Result{}, err
 	}
 
-	serviceKey, ok := secret.Data[issuerspec.Auth.ServiceKeyRef.Key]
-	if !ok {
-		err := fmt.Errorf("secret %s does not contain key %q", secret.Name, issuerspec.Auth.ServiceKeyRef.Key)
-		log.Error(err, "failed to retrieve OriginIssuer auth secret")
-		_ = r.setStatus(ctx, cr, cmmeta.ConditionFalse, "NotFound", fmt.Sprintf("Failed to retrieve auth secret: %v", err))
-
-		return reconcile.Result{}, err
-	}
-
-	c := r.Builder.Clone().WithServiceKey(serviceKey).Build()
 	p, err := provisioners.New(c, issuerspec.RequestType, log)
 	if err != nil {
 		log.Error(err, "failed to create provisioner")

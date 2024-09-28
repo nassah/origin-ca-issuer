@@ -40,31 +40,37 @@ func (r *OriginIssuerController) Reconcile(ctx context.Context, iss *v1.OriginIs
 		return reconcile.Result{}, err
 	}
 
-	secret := core.Secret{}
-	secretNamespaceName := types.NamespacedName{
-		Namespace: iss.Namespace,
-		Name:      iss.Spec.Auth.ServiceKeyRef.Name,
-	}
-
-	if err := r.Reader.Get(ctx, secretNamespaceName, &secret); err != nil {
-		log.Error(err, "failed to retieve OriginIssuer auth secret", "namespace", secretNamespaceName.Namespace, "name", secretNamespaceName.Name)
-
-		if apierrors.IsNotFound(err) {
-			_ = r.setStatus(ctx, iss, v1.ConditionFalse, "NotFound", fmt.Sprintf("Failed to retrieve auth secret: %v", err))
-		} else {
-			_ = r.setStatus(ctx, iss, v1.ConditionFalse, "Error", fmt.Sprintf("Failed to retrieve auth secret: %v", err))
+	switch {
+	case iss.Spec.Auth.ServiceKeyRef != nil:
+		secret := &core.Secret{}
+		secretNamespaceName := types.NamespacedName{
+			Namespace: iss.Namespace,
+			Name:      iss.Spec.Auth.ServiceKeyRef.Name,
 		}
 
-		return reconcile.Result{}, err
-	}
+		if err := r.Reader.Get(ctx, secretNamespaceName, secret); err != nil {
+			log.Error(err, "failed to retieve OriginIssuer auth secret", "namespace", secretNamespaceName.Namespace, "name", secretNamespaceName.Name)
 
-	_, ok := secret.Data[iss.Spec.Auth.ServiceKeyRef.Key]
-	if !ok {
-		err := fmt.Errorf("secret %s does not contain key %q", secret.Name, iss.Spec.Auth.ServiceKeyRef.Key)
-		log.Error(err, "failed to retrieve OriginIssuer auth secret")
-		_ = r.setStatus(ctx, iss, v1.ConditionFalse, "NotFound", fmt.Sprintf("Failed to retrieve auth secret: %v", err))
+			if apierrors.IsNotFound(err) {
+				_ = r.setStatus(ctx, iss, v1.ConditionFalse, "NotFound", fmt.Sprintf("Failed to retrieve auth secret: %v", err))
+			} else {
+				_ = r.setStatus(ctx, iss, v1.ConditionFalse, "Error", fmt.Sprintf("Failed to retrieve auth secret: %v", err))
+			}
 
-		return reconcile.Result{}, err
+			return reconcile.Result{}, err
+		}
+
+		_, ok := secret.Data[iss.Spec.Auth.ServiceKeyRef.Key]
+		if !ok {
+			err := fmt.Errorf("secret %s does not contain key %q", secret.Name, iss.Spec.Auth.ServiceKeyRef.Key)
+			log.Error(err, "failed to retrieve OriginIssuer auth secret")
+			_ = r.setStatus(ctx, iss, v1.ConditionFalse, "NotFound", fmt.Sprintf("Failed to retrieve auth secret: %v", err))
+
+			return reconcile.Result{}, err
+		}
+	default:
+		_ = r.setStatus(ctx, iss, v1.ConditionFalse, "MissingAuthentication", "No authentication methods were configured")
+		return reconcile.Result{}, nil
 	}
 
 	return reconcile.Result{}, r.setStatus(ctx, iss, v1.ConditionTrue, "Verified", "OriginIssuer verified and ready to sign certificates")
@@ -81,10 +87,6 @@ func (r *OriginIssuerController) setStatus(ctx context.Context, iss *v1.OriginIs
 // TODO: move this to another package?
 func validateOriginIssuer(s v1.OriginIssuerSpec) error {
 	switch {
-	case s.Auth.ServiceKeyRef.Name == "":
-		return fmt.Errorf("spec.auth.serviceKeyRef.name cannot be empty")
-	case s.Auth.ServiceKeyRef.Key == "":
-		return fmt.Errorf("spec.auth.serviceKeyRef.key cannot be empty")
 	case s.RequestType == "":
 		return fmt.Errorf("spec.requestType cannot be empty")
 	case s.RequestType != v1.RequestTypeOriginRSA && s.RequestType != v1.RequestTypeOriginECC:

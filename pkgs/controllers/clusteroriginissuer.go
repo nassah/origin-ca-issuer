@@ -41,31 +41,37 @@ func (r *ClusterOriginIssuerController) Reconcile(ctx context.Context, iss *v1.C
 		return reconcile.Result{}, err
 	}
 
-	secret := core.Secret{}
-	secretNamespaceName := types.NamespacedName{
-		Namespace: r.ClusterResourceNamespace,
-		Name:      iss.Spec.Auth.ServiceKeyRef.Name,
-	}
-
-	if err := r.Reader.Get(ctx, secretNamespaceName, &secret); err != nil {
-		log.Error(err, "failed to retieve ClusterOriginIssuer auth secret", "namespace", secretNamespaceName.Namespace, "name", secretNamespaceName.Name)
-
-		if apierrors.IsNotFound(err) {
-			_ = r.setStatus(ctx, iss, v1.ConditionFalse, "NotFound", fmt.Sprintf("Failed to retrieve auth secret: %v", err))
-		} else {
-			_ = r.setStatus(ctx, iss, v1.ConditionFalse, "Error", fmt.Sprintf("Failed to retrieve auth secret: %v", err))
+	switch {
+	case iss.Spec.Auth.ServiceKeyRef != nil:
+		secret := &core.Secret{}
+		secretNamespaceName := types.NamespacedName{
+			Namespace: r.ClusterResourceNamespace,
+			Name:      iss.Spec.Auth.ServiceKeyRef.Name,
 		}
 
-		return reconcile.Result{}, err
-	}
+		if err := r.Reader.Get(ctx, secretNamespaceName, secret); err != nil {
+			log.Error(err, "failed to retieve ClusterOriginIssuer auth secret", "namespace", secretNamespaceName.Namespace, "name", secretNamespaceName.Name)
 
-	_, ok := secret.Data[iss.Spec.Auth.ServiceKeyRef.Key]
-	if !ok {
-		err := fmt.Errorf("secret %s does not contain key %q", secret.Name, iss.Spec.Auth.ServiceKeyRef.Key)
-		log.Error(err, "failed to retrieve ClusterOriginIssuer auth secret")
-		_ = r.setStatus(ctx, iss, v1.ConditionFalse, "NotFound", fmt.Sprintf("Failed to retrieve auth secret: %v", err))
+			if apierrors.IsNotFound(err) {
+				_ = r.setStatus(ctx, iss, v1.ConditionFalse, "NotFound", fmt.Sprintf("Failed to retrieve auth secret: %v", err))
+			} else {
+				_ = r.setStatus(ctx, iss, v1.ConditionFalse, "Error", fmt.Sprintf("Failed to retrieve auth secret: %v", err))
+			}
 
-		return reconcile.Result{}, err
+			return reconcile.Result{}, err
+		}
+
+		_, ok := secret.Data[iss.Spec.Auth.ServiceKeyRef.Key]
+		if !ok {
+			err := fmt.Errorf("secret %s does not contain key %q", secret.Name, iss.Spec.Auth.ServiceKeyRef.Key)
+			log.Error(err, "failed to retrieve ClusterOriginIssuer auth secret")
+			_ = r.setStatus(ctx, iss, v1.ConditionFalse, "NotFound", fmt.Sprintf("Failed to retrieve auth secret: %v", err))
+
+			return reconcile.Result{}, err
+		}
+	default:
+		_ = r.setStatus(ctx, iss, v1.ConditionFalse, "MissingAuthentication", "No authentication methods were configured")
+		return reconcile.Result{}, nil
 	}
 
 	return reconcile.Result{}, r.setStatus(ctx, iss, v1.ConditionTrue, "Verified", "ClusterOriginIssuer verified and ready to sign certificates")

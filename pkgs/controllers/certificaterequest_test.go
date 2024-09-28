@@ -49,7 +49,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 		namespaceName types.NamespacedName
 	}{
 		{
-			name: "working OriginIssuer",
+			name: "working OriginIssuer with serviceKeyRef",
 			objects: []runtime.Object{
 				cmgen.CertificateRequest("foobar",
 					cmgen.SetCertificateRequestNamespace("default"),
@@ -69,7 +69,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 					Spec: v1.OriginIssuerSpec{
 						RequestType: v1.RequestTypeOriginECC,
 						Auth: v1.OriginIssuerAuthentication{
-							ServiceKeyRef: v1.SecretKeySelector{
+							ServiceKeyRef: &v1.SecretKeySelector{
 								Name: "service-key-issuer",
 								Key:  "key",
 							},
@@ -113,7 +113,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "working ClusterOriginIssuer",
+			name: "working ClusterOriginIssuer with serviceKeyRef",
 			objects: []runtime.Object{
 				cmgen.CertificateRequest("foobar",
 					cmgen.SetCertificateRequestNamespace("default"),
@@ -132,7 +132,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 					Spec: v1.OriginIssuerSpec{
 						RequestType: v1.RequestTypeOriginECC,
 						Auth: v1.OriginIssuerAuthentication{
-							ServiceKeyRef: v1.SecretKeySelector{
+							ServiceKeyRef: &v1.SecretKeySelector{
 								Name: "service-key-issuer",
 								Key:  "key",
 							},
@@ -176,6 +176,41 @@ func TestCertificateRequestReconcile(t *testing.T) {
 			},
 		},
 		{
+			name: "OriginIssuer without authentication",
+			objects: []runtime.Object{
+				cmgen.CertificateRequest("foobar",
+					cmgen.SetCertificateRequestNamespace("default"),
+					cmgen.SetCertificateRequestDuration(&metav1.Duration{Duration: 7 * 24 * time.Hour}),
+					cmgen.SetCertificateRequestCSR(golden.Get(t, "csr.golden")),
+					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
+						Name:  "foobar",
+						Kind:  "OriginIssuer",
+						Group: "cert-manager.k8s.cloudflare.com",
+					}),
+				),
+				&v1.OriginIssuer{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "foobar",
+						Namespace: "default",
+					},
+					Spec: v1.OriginIssuerSpec{},
+					Status: v1.OriginIssuerStatus{
+						Conditions: []v1.OriginIssuerCondition{
+							{
+								Type:   v1.ConditionReady,
+								Status: v1.ConditionTrue,
+							},
+						},
+					},
+				},
+			},
+			namespaceName: types.NamespacedName{
+				Namespace: "default",
+				Name:      "foobar",
+			},
+			error: "issuer foobar does not have an authentication method configured",
+		},
+		{
 			name: "requeue after API error",
 			objects: []runtime.Object{
 				cmgen.CertificateRequest("foobar",
@@ -196,7 +231,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 					Spec: v1.OriginIssuerSpec{
 						RequestType: v1.RequestTypeOriginECC,
 						Auth: v1.OriginIssuerAuthentication{
-							ServiceKeyRef: v1.SecretKeySelector{
+							ServiceKeyRef: &v1.SecretKeySelector{
 								Name: "service-key-issuer",
 								Key:  "key",
 							},
@@ -239,7 +274,9 @@ func TestCertificateRequestReconcile(t *testing.T) {
 				WithStatusSubresource(&cmapi.CertificateRequest{}).
 				Build()
 
-			defer tt.recorder.Stop()
+			if tt.recorder != nil {
+				defer tt.recorder.Stop()
+			}
 
 			controller := &CertificateRequestController{
 				Client:                   client,
