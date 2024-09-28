@@ -1,21 +1,14 @@
-//go:build suite
-// +build suite
-
 package controllers
 
 import (
 	"context"
-	"log"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	cmapi "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
-	"github.com/cloudflare/origin-ca-issuer/internal/cfapi"
 	v1 "github.com/cloudflare/origin-ca-issuer/pkgs/apis/v1"
-	"github.com/go-logr/zerologr"
-	"github.com/rs/zerolog"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -29,27 +22,6 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
-
-var cfg *rest.Config
-
-func TestMain(m *testing.M) {
-	zl := zerolog.Nop()
-	logf.SetLogger(zerologr.New(&zl))
-	t := &envtest.Environment{
-		CRDDirectoryPaths: []string{filepath.Join("..", "..", "deploy", "crds")},
-	}
-	cmapi.AddToScheme(scheme.Scheme)
-	v1.AddToScheme(scheme.Scheme)
-
-	var err error
-	if cfg, err = t.Start(); err != nil {
-		log.Fatal(err)
-	}
-
-	code := m.Run()
-	t.Stop()
-	os.Exit(code)
-}
 
 func TestOriginIssuerReconcileSuite(t *testing.T) {
 	issuer := &v1.OriginIssuer{
@@ -77,6 +49,15 @@ func TestOriginIssuerReconcileSuite(t *testing.T) {
 		},
 	}
 
+	if os.Getenv("KUBEBUILDER_ASSETS") == "" {
+		t.Skip("kubebuilder environment was not setup")
+	}
+
+	cfg, err := envtestConfig(t)
+	if err != nil {
+		t.Fatalf("error starting envtest: %v", err)
+	}
+
 	mgr, err := manager.New(cfg, manager.Options{
 		Metrics: metricsserver.Options{
 			BindAddress: "0",
@@ -88,16 +69,11 @@ func TestOriginIssuerReconcileSuite(t *testing.T) {
 	}
 	c := mgr.GetClient()
 
-	f := cfapi.FactoryFunc(func(serviceKey []byte) (cfapi.Interface, error) {
-		return nil, nil
-	})
-
 	controller := &OriginIssuerController{
-		Client:  c,
-		Reader:  c,
-		Clock:   clock.RealClock{},
-		Factory: f,
-		Log:     logf.Log,
+		Client: c,
+		Reader: c,
+		Clock:  clock.RealClock{},
+		Log:    logf.Log,
 	}
 
 	builder.ControllerManagedBy(mgr).
@@ -136,6 +112,29 @@ func TestOriginIssuerReconcileSuite(t *testing.T) {
 
 		return IssuerStatusHasCondition(iss.Status, v1.OriginIssuerCondition{Type: v1.ConditionReady, Status: v1.ConditionTrue})
 	}, 5*time.Second, 10*time.Millisecond, "OriginIssuer reconciler")
+}
+
+func envtestConfig(t *testing.T) (*rest.Config, error) {
+	t.Helper()
+
+	env := &envtest.Environment{
+		CRDDirectoryPaths: []string{filepath.Join("..", "..", "deploy", "crds")},
+	}
+	cmapi.AddToScheme(scheme.Scheme)
+	v1.AddToScheme(scheme.Scheme)
+
+	cfg, err := env.Start()
+	if err != nil {
+		return nil, err
+	}
+
+	t.Cleanup(func() {
+		if err := env.Stop(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	return cfg, nil
 }
 
 func StartTestManager(mgr manager.Manager, t *testing.T) (context.CancelFunc, chan error) {

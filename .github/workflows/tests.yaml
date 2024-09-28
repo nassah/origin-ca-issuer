@@ -24,7 +24,6 @@ jobs:
           go-version: "stable"
       - uses: dominikh/staticcheck-action@v1
         with:
-          build-tags: suite
           install-go: false
   integration:
     needs:
@@ -36,7 +35,8 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version: "stable"
-      - run: |
+      - name: integration
+        run: |
           go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
           source <(setup-envtest use -p env)
-          go test ./... -tags suite
+          make test
