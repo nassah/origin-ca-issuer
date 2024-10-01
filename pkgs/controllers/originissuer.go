@@ -68,6 +68,33 @@ func (r *OriginIssuerController) Reconcile(ctx context.Context, iss *v1.OriginIs
 
 			return reconcile.Result{}, err
 		}
+	case iss.Spec.Auth.TokenRef != nil:
+		secret := &core.Secret{}
+		secretNamespaceName := types.NamespacedName{
+			Namespace: iss.Namespace,
+			Name:      iss.Spec.Auth.TokenRef.Name,
+		}
+
+		if err := r.Reader.Get(ctx, secretNamespaceName, secret); err != nil {
+			log.Error(err, "failed to retieve OriginIssuer auth secret", "namespace", secretNamespaceName.Namespace, "name", secretNamespaceName.Name)
+
+			if apierrors.IsNotFound(err) {
+				_ = r.setStatus(ctx, iss, v1.ConditionFalse, "NotFound", fmt.Sprintf("Failed to retrieve auth secret: %v", err))
+			} else {
+				_ = r.setStatus(ctx, iss, v1.ConditionFalse, "Error", fmt.Sprintf("Failed to retrieve auth secret: %v", err))
+			}
+
+			return reconcile.Result{}, err
+		}
+
+		_, ok := secret.Data[iss.Spec.Auth.TokenRef.Key]
+		if !ok {
+			err := fmt.Errorf("secret %s does not contain key %q", secret.Name, iss.Spec.Auth.TokenRef.Key)
+			log.Error(err, "failed to retrieve OriginIssuer auth secret")
+			_ = r.setStatus(ctx, iss, v1.ConditionFalse, "NotFound", fmt.Sprintf("Failed to retrieve auth secret: %v", err))
+
+			return reconcile.Result{}, err
+		}
 	default:
 		_ = r.setStatus(ctx, iss, v1.ConditionFalse, "MissingAuthentication", "No authentication methods were configured")
 		return reconcile.Result{}, nil

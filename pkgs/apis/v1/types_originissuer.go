@@ -85,6 +85,10 @@ type OriginIssuerAuthentication struct {
 	// ServiceKeyRef authenticates with an API Service Key.
 	// +optional
 	ServiceKeyRef *SecretKeySelector `json:"serviceKeyRef,omitempty"`
+
+	// TokenRef authenticates with an API Token.
+	// +optional
+	TokenRef *SecretKeySelector `json:"tokenRef,omitempty"`
 }
 
 // SecretKeySelector contains a reference to a secret.

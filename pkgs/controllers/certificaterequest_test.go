@@ -176,6 +176,133 @@ func TestCertificateRequestReconcile(t *testing.T) {
 			},
 		},
 		{
+			name: "working OriginIssuer with tokenRef",
+			objects: []runtime.Object{
+				cmgen.CertificateRequest("foobar",
+					cmgen.SetCertificateRequestNamespace("default"),
+					cmgen.SetCertificateRequestDuration(&metav1.Duration{Duration: 7 * 24 * time.Hour}),
+					cmgen.SetCertificateRequestCSR(golden.Get(t, "csr.golden")),
+					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
+						Name:  "foobar",
+						Kind:  "OriginIssuer",
+						Group: "cert-manager.k8s.cloudflare.com",
+					}),
+				),
+				&v1.OriginIssuer{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "foobar",
+						Namespace: "default",
+					},
+					Spec: v1.OriginIssuerSpec{
+						RequestType: v1.RequestTypeOriginECC,
+						Auth: v1.OriginIssuerAuthentication{
+							TokenRef: &v1.SecretKeySelector{
+								Name: "token-issuer",
+								Key:  "token",
+							},
+						},
+					},
+					Status: v1.OriginIssuerStatus{
+						Conditions: []v1.OriginIssuerCondition{
+							{
+								Type:   v1.ConditionReady,
+								Status: v1.ConditionTrue,
+							},
+						},
+					},
+				},
+				&corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "token-issuer",
+						Namespace: "default",
+					},
+					Data: map[string][]byte{
+						"token": []byte("api-token"),
+					},
+				},
+			},
+			recorder: RecorderMust(t, "testdata/working"),
+			expected: cmapi.CertificateRequestStatus{
+				Conditions: []cmapi.CertificateRequestCondition{
+					{
+						Type:               cmapi.CertificateRequestConditionReady,
+						Status:             cmmeta.ConditionTrue,
+						LastTransitionTime: &now,
+						Reason:             "Issued",
+						Message:            "Certificate issued",
+					},
+				},
+				Certificate: golden.Get(t, "certificate.golden"),
+			},
+			namespaceName: types.NamespacedName{
+				Namespace: "default",
+				Name:      "foobar",
+			},
+		},
+		{
+			name: "working ClusterOriginIssuer with tokenRef",
+			objects: []runtime.Object{
+				cmgen.CertificateRequest("foobar",
+					cmgen.SetCertificateRequestNamespace("default"),
+					cmgen.SetCertificateRequestDuration(&metav1.Duration{Duration: 7 * 24 * time.Hour}),
+					cmgen.SetCertificateRequestCSR(golden.Get(t, "csr.golden")),
+					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
+						Name:  "foobar",
+						Kind:  "ClusterOriginIssuer",
+						Group: "cert-manager.k8s.cloudflare.com",
+					}),
+				),
+				&v1.ClusterOriginIssuer{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "foobar",
+					},
+					Spec: v1.OriginIssuerSpec{
+						RequestType: v1.RequestTypeOriginECC,
+						Auth: v1.OriginIssuerAuthentication{
+							TokenRef: &v1.SecretKeySelector{
+								Name: "token-issuer",
+								Key:  "token",
+							},
+						},
+					},
+					Status: v1.OriginIssuerStatus{
+						Conditions: []v1.OriginIssuerCondition{
+							{
+								Type:   v1.ConditionReady,
+								Status: v1.ConditionTrue,
+							},
+						},
+					},
+				},
+				&corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "token-issuer",
+						Namespace: "super-secret",
+					},
+					Data: map[string][]byte{
+						"token": []byte("api-token"),
+					},
+				},
+			},
+			recorder: RecorderMust(t, "testdata/working"),
+			expected: cmapi.CertificateRequestStatus{
+				Conditions: []cmapi.CertificateRequestCondition{
+					{
+						Type:               cmapi.CertificateRequestConditionReady,
+						Status:             cmmeta.ConditionTrue,
+						LastTransitionTime: &now,
+						Reason:             "Issued",
+						Message:            "Certificate issued",
+					},
+				},
+				Certificate: golden.Get(t, "certificate.golden"),
+			},
+			namespaceName: types.NamespacedName{
+				Namespace: "default",
+				Name:      "foobar",
+			},
+		},
+		{
 			name: "OriginIssuer without authentication",
 			objects: []runtime.Object{
 				cmgen.CertificateRequest("foobar",

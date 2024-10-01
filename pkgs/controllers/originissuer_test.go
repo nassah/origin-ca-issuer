@@ -162,6 +162,50 @@ func TestOriginIssuerReconcile(t *testing.T) {
 			},
 		},
 		{
+			name: "working tokenRef",
+			objects: []runtime.Object{
+				&v1.OriginIssuer{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "foo",
+						Namespace: "default",
+					},
+					Spec: v1.OriginIssuerSpec{
+						RequestType: v1.RequestTypeOriginRSA,
+						Auth: v1.OriginIssuerAuthentication{
+							TokenRef: &v1.SecretKeySelector{
+								Name: "issuer-api-token",
+								Key:  "token",
+							},
+						},
+					},
+				},
+				&corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "issuer-api-token",
+						Namespace: "default",
+					},
+					Data: map[string][]byte{
+						"token": []byte("djEuMC0weDAwQkFCMTBD"),
+					},
+				},
+			},
+			expected: v1.OriginIssuerStatus{
+				Conditions: []v1.OriginIssuerCondition{
+					{
+						Type:               v1.ConditionReady,
+						Status:             v1.ConditionTrue,
+						LastTransitionTime: &now,
+						Reason:             "Verified",
+						Message:            "OriginIssuer verified and ready to sign certificates",
+					},
+				},
+			},
+			namespaceName: types.NamespacedName{
+				Namespace: "default",
+				Name:      "foo",
+			},
+		},
+		{
 			name: "unset authentication",
 			objects: []runtime.Object{
 				&v1.OriginIssuer{

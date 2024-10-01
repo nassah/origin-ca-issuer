@@ -7,6 +7,7 @@ import (
 type Builder struct {
 	hc         *http.Client
 	serviceKey []byte
+	token      []byte
 }
 
 func NewBuilder() *Builder {
@@ -15,6 +16,11 @@ func NewBuilder() *Builder {
 
 func (b *Builder) WithServiceKey(key []byte) *Builder {
 	b.serviceKey = key
+	return b
+}
+
+func (b *Builder) WithToken(token []byte) *Builder {
+	b.token = token
 	return b
 }
 
@@ -31,5 +37,12 @@ func (b *Builder) Clone() *Builder {
 }
 
 func (b *Builder) Build() *Client {
-	return New(WithServiceKey(b.serviceKey), WithClient(b.hc))
+	switch {
+	case b.serviceKey != nil:
+		return New(WithServiceKey(b.serviceKey), WithClient(b.hc))
+	case b.token != nil:
+		return New(WithToken(b.token), WithClient(b.hc))
+	default:
+		return nil
+	}
 }

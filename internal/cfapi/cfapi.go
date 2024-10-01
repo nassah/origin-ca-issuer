@@ -16,6 +16,7 @@ type Interface interface {
 
 type Client struct {
 	serviceKey []byte
+	token      []byte
 	client     *http.Client
 	endpoint   string
 }
@@ -38,6 +39,12 @@ type Options func(c *Client)
 func WithServiceKey(key []byte) Options {
 	return func(c *Client) {
 		c.serviceKey = key
+	}
+}
+
+func WithToken(token []byte) Options {
+	return func(c *Client) {
+		c.token = token
 	}
 }
 
@@ -106,7 +113,13 @@ func (c *Client) Sign(ctx context.Context, req *SignRequest) (*SignResponse, err
 	}
 
 	r.Header.Add("User-Agent", "github.com/cloudflare/origin-ca-issuer")
-	r.Header.Add("X-Auth-User-Service-Key", string(c.serviceKey))
+
+	if c.serviceKey != nil {
+		r.Header.Add("X-Auth-User-Service-Key", string(c.serviceKey))
+	}
+	if c.token != nil {
+		r.Header.Add("Authorization", "Bearer "+string(c.token))
+	}
 
 	resp, err := c.client.Do(r)
 	if err != nil {

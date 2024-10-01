@@ -57,6 +57,23 @@ spec:
                     - key
                     - name
                     type: object
+                  tokenRef:
+                    description: TokenRef authenticates with an API Token.
+                    properties:
+                      key:
+                        description: Key of the secret to select from. Must be a valid
+                          secret key.
+                        type: string
+                      name:
+                        description: Name of the secret in the issuer's namespace
+                          to select. If a cluster-scoped issuer, the secret is selected
+                          from the "cluster resource namespace" configured on the
+                          controller.
+                        type: string
+                    required:
+                    - key
+                    - name
+                    type: object
                 type: object
               requestType:
                 description: RequestType is the signature algorithm Cloudflare should

@@ -156,6 +156,48 @@ func TestClusterOriginIssuerReconcile(t *testing.T) {
 			},
 		},
 		{
+			name: "working tokenRef",
+			objects: []runtime.Object{
+				&v1.ClusterOriginIssuer{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "foo",
+					},
+					Spec: v1.OriginIssuerSpec{
+						RequestType: v1.RequestTypeOriginRSA,
+						Auth: v1.OriginIssuerAuthentication{
+							TokenRef: &v1.SecretKeySelector{
+								Name: "issuer-api-token",
+								Key:  "token",
+							},
+						},
+					},
+				},
+				&corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "issuer-api-token",
+						Namespace: "super-secret",
+					},
+					Data: map[string][]byte{
+						"token": []byte("djEuMC0weDAwQkFCMTBD"),
+					},
+				},
+			},
+			expected: v1.OriginIssuerStatus{
+				Conditions: []v1.OriginIssuerCondition{
+					{
+						Type:               v1.ConditionReady,
+						Status:             v1.ConditionTrue,
+						LastTransitionTime: &now,
+						Reason:             "Verified",
+						Message:            "ClusterOriginIssuer verified and ready to sign certificates",
+					},
+				},
+			},
+			namespaceName: types.NamespacedName{
+				Name: "foo",
+			},
+		},
+		{
 			name: "unset authentication",
 			objects: []runtime.Object{
 				&v1.ClusterOriginIssuer{
