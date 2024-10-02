@@ -4,8 +4,8 @@ origin-ca-issuer is a Kubernetes addon to automate issuance and renewals of Clou
 
 ## Prerequisites
 
-* Kubernetes 1.16+
-* cert-manager 1.0.0+
+* Kubernetes releases in [maintenance support](https://endoflife.date/kubernetes)
+* cert-manager releases with upstream [support](https://endoflife.date/cert-manager)
 
 ## Installing the Chart
 

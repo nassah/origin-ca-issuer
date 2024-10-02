@@ -3,7 +3,12 @@
 Origin CA Issuer is a [[https://github.com/cert-manager/cert-manager][cert-manager]] CertificateRequest controller for Cloudflare's [[https://developers.cloudflare.com/ssl/origin-configuration/origin-ca][Origin CA]] feature.
 
 ** Getting Started
-We assume you have a Kubernetes cluster (1.16 or newer) with cert-manager (1.0 or newer) installed. We also assume you have permissions to create Custom Resource Definitions.
+*** Prerequisites
+
+- Kubernetes: releases with [[https://endoflife.date/kubernetes][maintenance support]]
+- cert-manager: releases under [[https://endoflife.date/cert-manager][upstream support]], which can be installed following upstream's [[https://cert-manager.io/docs/installation/][documentation]].
+
+You must also have permissions in the Kubernetes cluster to create Custom Resource Definitions.
 
 *** Installing Origin CA Issuer
 First, we need to install the Custom Resource Definitions for the Origin CA Issuer.
