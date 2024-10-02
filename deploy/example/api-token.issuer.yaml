@@ -1,4 +1,4 @@
-# [[file:../../README.org::*Adding an OriginIssuer][Adding an OriginIssuer:2]]
+# [[file:../../README.org::*API Token][API Token:2]]
 apiVersion: cert-manager.k8s.cloudflare.com/v1
 kind: OriginIssuer
 metadata:
@@ -7,7 +7,7 @@ metadata:
 spec:
   requestType: OriginECC
   auth:
-    serviceKeyRef:
-      name: service-key
+    tokenRef:
+      name: cfapi-token
       key: key
-# Adding an OriginIssuer:2 ends here
+# API Token:2 ends here
