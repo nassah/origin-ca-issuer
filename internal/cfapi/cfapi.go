@@ -101,6 +101,15 @@ func (a *APIError) Error() string {
 	return fmt.Sprintf("Cloudflare API Error code=%d message=%s ray_id=%s", a.Code, a.Message, a.RayID)
 }
 
+func (a *APIError) Is(target error) bool {
+	switch t := target.(type) {
+	case *APIError:
+		return t.Code == a.Code
+	default:
+		return false
+	}
+}
+
 func (c *Client) Sign(ctx context.Context, req *SignRequest) (*SignResponse, error) {
 	p, err := json.Marshal(req)
 	if err != nil {

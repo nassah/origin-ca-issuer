@@ -116,7 +116,7 @@ func TestSign(t *testing.T) {
 			}),
 			response:  nil,
 			error:     "Cloudflare API Error code=9001 message=Over Nine Thousand! ray_id=0123456789abcdef-ABC",
-			errorType: &APIError{},
+			errorType: &APIError{Code: 9001},
 		},
 	}
 
@@ -142,7 +142,7 @@ func TestSign(t *testing.T) {
 
 			if tt.error != "" {
 				assert.Error(t, err, tt.error)
-				assert.ErrorType(t, err, tt.errorType)
+				assert.ErrorIs(t, err, tt.errorType)
 			} else {
 				assert.NilError(t, err)
 			}
