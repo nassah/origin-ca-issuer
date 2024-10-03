@@ -16,9 +16,9 @@ spec:
       serviceAccountName: originissuer-control
       containers:
         - name: origin-ca-controller
-          image: cloudflare/origin-ca-issuer:v0.9.0
+          image: cloudflare/origin-ca-issuer:v0.10.0
           args:
-            - --cluster-resource-namespace=${POD_NAMESPACE}
+            - --cluster-resource-namespace=$(POD_NAMESPACE)
           env:
             - name: POD_NAMESPACE
               valueFrom:
