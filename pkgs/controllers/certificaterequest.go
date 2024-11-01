@@ -44,7 +44,7 @@ type CertificateRequestController struct {
 func (r *CertificateRequestController) Reconcile(ctx context.Context, cr *certmanager.CertificateRequest) (reconcile.Result, error) {
 	log := r.Log.WithValues("namespace", cr.Namespace, "certificaterequest", cr.Name)
 
-	if cr.Spec.IssuerRef.Group != "" && cr.Spec.IssuerRef.Group != v1.GroupVersion.Group {
+	if cr.Spec.IssuerRef.Group != v1.GroupVersion.Group {
 		log.V(4).Info("resource does not specify an issuerRef group name that we are responsible for", "group", cr.Spec.IssuerRef.Group)
 
 		return reconcile.Result{}, nil
