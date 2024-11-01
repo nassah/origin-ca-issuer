@@ -12,14 +12,14 @@ origin-ca-issuer is a Kubernetes addon to automate issuance and renewals of Clou
 Before installing the chart, you must first install [cert-manager](https://cert-manager.io/docs/installation/), and the origin-ca-issuer CustomResourceDefinition resources.
 
 ```shell
-VERSION="v0.9.0"
+VERSION="v0.11.0"
 kubectl apply -f https://raw.githubusercontent.com/cloudflare/origin-ca-issuer/${VERSION}/deploy/crds/cert-manager.k8s.cloudflare.com_originissuers.yaml
 ```
 
 To install the chart with the release name `my-release`:
 
 ``` shell
-helm install --name my-release oci://ghcr.io/cloudflare/origin-ca-issuer-charts/origin-ca-issuer --version 0.5.5
+helm install --name my-release oci://ghcr.io/cloudflare/origin-ca-issuer-charts/origin-ca-issuer --version 0.5.10
 ```
 
 In order to begin issuing certificates from the Cloudflare Origin CA you will need to set up an OriginIssuer. For more information, see the [documentation](https://github.com/cloudflare/origin-ca-issuer/blob/trunk/README.org).
